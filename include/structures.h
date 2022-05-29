@@ -16,18 +16,18 @@
 /*****************************************************************************\
 |* Genereric rectangle structure
 \*****************************************************************************/
-typedef struct
+struct Rect
     {
     int x;              // Top left x
     int y;              // Top left y
     int w;              // Width
     int h;              // Height
-
+ 
     void dump(void)
         {
         printf("%d,%d +-> %d,%d\n", x, y, w, h);
         }
-    } Rect;
+    };
 
 /*****************************************************************************\
 |* Genereric colour structure

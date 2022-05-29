@@ -316,66 +316,6 @@ int Ili9481::init(DpyContext *ctx)
     }
 
 
-/*****************************************************************************\
-|* Method : Fill a rectangle on the display with a colour
-\*****************************************************************************/
-void Ili9481::rectFill(Rect r, RGB colour)
-    {
-    /*************************************************************************\
-    |* Clipping : If we're entirely OUB just return
-    \*************************************************************************/
-    if ((r.x >= _clip.x + _clip.w) || (r.y >= _clip.y + _clip.h))
-        return;
-    
-    /*************************************************************************\
-    |* Clipping : If we're off to the left, clip x & adjust w
-    \*************************************************************************/
-    if (r.x < _clip.x)
-        {
-        r.w += r.x - _clip.x;
-        r.x  = _clip.x;
-        }
-  
-    /*************************************************************************\
-    |* Clipping : If we're up above, clip y & adjust h
-    \*************************************************************************/
-    if (r.y < _clip.y)
-        {
-        r.h += r.y - _clip.y;
-        r.y  = _clip.y;
-        }
-   
-    /*************************************************************************\
-    |* Clipping : Make sure we're not too wide or too tall
-    \*************************************************************************/
-    if ((r.x + r.w) > _clip.w)
-        r.w = _clip.w - r.x;
-    
-    if ((r.y + r.h) > _clip.h)
-        r.h = _clip.h - r.y;
-   
-    /*************************************************************************\
-    |* Clipping : If clipping means nothing to draw, return
-    \*************************************************************************/
-    if ((r.w < 1) || (r.h < 1))
-        return;
-
-    /*************************************************************************\
-    |* Take CS low
-    \*************************************************************************/
-    LCD_CS(Gpio::LO);
-
-    /*************************************************************************\
-    |* Set the window on-screen that we want to fill to
-    \*************************************************************************/
-    _setWindow(r);
-    _pushBlock(r, colour);
- 
-    /*************************************************************************\
-    |* Take CS high
-    \*************************************************************************/
-    LCD_CS(Gpio::HI);
-   }
 
 /*****************************************************************************\
 |* Method : Fetch the address mode
@@ -457,15 +397,79 @@ void Ili9481::setRotation(Rotation rotation)
     }
 
 /*****************************************************************************\
+|* Method : draw a rectangle, optionally filled
+\*****************************************************************************/
+void Ili9481::circle(int x, int y, int r, RGB rgb, bool filled)
+    {
+    if (filled == false)
+        _circle(x, y, r, rgb);
+    else
+        {
+        int  xx  = 0;
+        int  dx = 1;
+        int  dy = r+r;
+        int  p  = -(r>>1);
+
+        _hline(x-r, y, dy+1, rgb);
+        while (x<r)
+            {
+            if (p>=0)
+                {
+                _hline(x - xx, y + r, dx, rgb);
+                _hline(x - xx, y - r, dx, rgb);
+                dy-=2;
+                p-=dy;
+                r--;
+                }
+
+            dx+=2;
+            p+=dx;
+            xx++;
+
+            _hline(x - r, y + xx, dy+1, rgb);
+            _hline(x - r, y - xx, dy+1, rgb);
+            }
+        }
+    }
+
+
+/*****************************************************************************\
 |* Method : draw a line
 \*****************************************************************************/
-void Ili9481::drawLine(int x1, int y1, int x2, int y2, RGB colour)
+void Ili9481::line(int x1, int y1, int x2, int y2, RGB colour)
     {
     if (y1 == y2)
         _hline(x1, y1, x2-x1, colour);
     else if (x1 == x2)
         _vline(x1, y1, y2-y1, colour);
     }
+
+
+/*****************************************************************************\
+|* Method : plot a pixel
+\*****************************************************************************/
+void Ili9481::plot(int x, int y, RGB rgb)
+    {
+    _hline(x, y, 1, rgb);
+    }
+
+/*****************************************************************************\
+|* Method : draw a rectangle, filled or not
+\*****************************************************************************/
+void Ili9481::box(Rect r, RGB rgb, bool filled)
+    {
+    if (filled)
+        _rectFill(r, rgb);
+    else
+        {
+        _hline(r.x, r.y, r.w, rgb);
+        _hline(r.x, r.y+r.h, r.w, rgb);
+        _vline(r.x, r.y, r.h, rgb);
+        _vline(r.x+r.w, r.y, r.h, rgb);
+        }
+    }
+
+
 
 
 #pragma mark - Private Methods
@@ -724,8 +728,6 @@ void Ili9481::_vline(int x, int y, int h, RGB colour)
     if (h < 1)
         return;
     
-    printf("x=%d, y=%d, h=%d\n", x, y, h);
-
     /*************************************************************************\
     |* Take CS low
     \*************************************************************************/
@@ -742,4 +744,130 @@ void Ili9481::_vline(int x, int y, int h, RGB colour)
     |* Take CS high
     \*************************************************************************/
     LCD_CS(Gpio::HI);
+    }
+
+/*****************************************************************************\
+|* Private Method : Fill a rectangle on the display with a colour
+\*****************************************************************************/
+void Ili9481::_rectFill(Rect r, RGB colour)
+    {
+    /*************************************************************************\
+    |* Clipping : If we're entirely OUB just return
+    \*************************************************************************/
+    if ((r.x >= _clip.x + _clip.w) || (r.y >= _clip.y + _clip.h))
+        return;
+    
+    /*************************************************************************\
+    |* Clipping : If we're off to the left, clip x & adjust w
+    \*************************************************************************/
+    if (r.x < _clip.x)
+        {
+        r.w += r.x - _clip.x;
+        r.x  = _clip.x;
+        }
+  
+    /*************************************************************************\
+    |* Clipping : If we're up above, clip y & adjust h
+    \*************************************************************************/
+    if (r.y < _clip.y)
+        {
+        r.h += r.y - _clip.y;
+        r.y  = _clip.y;
+        }
+   
+    /*************************************************************************\
+    |* Clipping : Make sure we're not too wide or too tall
+    \*************************************************************************/
+    if ((r.x + r.w) > _clip.w)
+        r.w = _clip.w - r.x;
+    
+    if ((r.y + r.h) > _clip.h)
+        r.h = _clip.h - r.y;
+   
+    /*************************************************************************\
+    |* Clipping : If clipping means nothing to draw, return
+    \*************************************************************************/
+    if ((r.w < 1) || (r.h < 1))
+        return;
+
+    /*************************************************************************\
+    |* Take CS low
+    \*************************************************************************/
+    LCD_CS(Gpio::LO);
+
+    /*************************************************************************\
+    |* Set the window on-screen that we want to fill to
+    \*************************************************************************/
+    _setWindow(r);
+    _pushBlock(r, colour);
+ 
+    /*************************************************************************\
+    |* Take CS high
+    \*************************************************************************/
+    LCD_CS(Gpio::HI);
+   }
+
+/*****************************************************************************\
+|* Method : plot a cliecle
+\*****************************************************************************/
+void Ili9481::_circle(int x, int y, int r, RGB rgb)
+    {
+    int f       =  1 - r;
+    int ddfY    = -2 * r;
+    int ddfX    =  1;
+    int xs      = -1;
+    int xe      =  0;
+    int len     =  0;
+
+    bool first  = true;
+    do
+        {
+        while (f < 0)
+            {
+            xe ++;
+            f  += (ddfX += 2);
+            }
+        f += (ddfY += 2);
+
+        if (xe > xs - 1)
+            {
+            if (first)
+                {
+                len = 2 * (xe - xs) - 1;
+                _hline(x - xe, y + r, len, rgb);
+                _hline(x - xe, y - r, len, rgb);
+                _vline(x + r, y - xe, len, rgb);
+                _vline(x - r, y - xe, len, rgb);
+                first = false;
+                }
+            else
+                {
+                len = xe - xs++;
+                _hline(x - xe, y + r, len, rgb);
+                _hline(x - xe, y - r, len, rgb);
+                _hline(x + xs, y - r, len, rgb);
+                _hline(x + xs, y + r, len, rgb);
+
+                _vline(x + r, y + xs, len, rgb);
+                _vline(x + r, y - xe, len, rgb);
+                _vline(x - r, y - xe, len, rgb);
+                _vline(x - r, y + xs, len, rgb);
+                }
+            }
+        else
+            {
+            xs ++;
+            plot(x - xe, y + r, rgb);
+            plot(x - xe, y - r, rgb);
+            plot(x + xs, y - r, rgb);
+            plot(x + xs, y + r, rgb);
+
+            plot(x + r, y + xs, rgb);
+            plot(x + r, y - xe, rgb);
+            plot(x - r, y - xe, rgb);
+            plot(x - r, y + xs, rgb);
+            }
+        xs = xe;
+        }
+    while (xe < --r);
     }
