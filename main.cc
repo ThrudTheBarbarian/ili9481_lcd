@@ -36,7 +36,8 @@ int main (int argc, char **argv)
     int ok      = dpy.init(&ctx);
     dpy.setRotation(Ili9481::INVERTED_PORTRAIT);
 
-	dpy.box({0, 0, 320, 480}, RGB(0xff, 0xff, 0xff), true);
+    dpy.clear(RGB(50,200,200));
+
 	dpy.box({100, 100, 120, 280}, RGB(0xff, 0x00, 0x00));
 
     dpy.plot(50, 50, RGB(0x0, 0x00, 0x0));
@@ -44,6 +45,12 @@ int main (int argc, char **argv)
     dpy.circle(180, 300, 90, RGB(128,0,255), true);
     dpy.circle(150,350, 100, {200, 100, 0});
 
+    dpy.ellipse(200,430,100,40, RGB(90, 110, 255));
+    dpy.ellipse(200,430,98,38, RGB(255, 110, 90), true);
+    
+    dpy.box({80, 10, 200, 30}, {255, 50, 200}, false, 5);
+    dpy.box({80, 45, 200, 30}, {255, 50, 200}, true, 5);
+    
     Gpio::State toggle = Gpio::HI;
     while (1)
 		{

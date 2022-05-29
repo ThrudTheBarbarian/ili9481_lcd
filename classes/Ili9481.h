@@ -84,7 +84,7 @@ class Ili9481
         /*********************************************************************\
         |* Draw a rectangle, optionally filled
         \*********************************************************************/
-        void box(Rect r, RGB rgb, bool filled=false);
+        void box(Rect r, RGB rgb, bool filled=false, int rounded=0);
         
         /*********************************************************************\
         |* Draw a pixel
@@ -92,9 +92,19 @@ class Ili9481
         void plot(int x, int y, RGB colour);
         
         /*********************************************************************\
-        |* Draw a circle
+        |* Draw a circle, optionally filled
         \*********************************************************************/
         void circle(int x, int y, int r, RGB colour, bool filled=false);
+        
+        /*********************************************************************\
+        |* Draw an ellipse, optionally filled
+        \*********************************************************************/
+        void ellipse(int x, int y, int rx, int ry, RGB rgb, bool filled=false);
+        
+        /*********************************************************************\
+        |* Clear the screen to a colour
+        \*********************************************************************/
+        void clear( RGB rgb = RGB(0,0,0));
     
     private:
         /*********************************************************************\
@@ -130,15 +140,19 @@ class Ili9481
         void _rectFill(Rect r, RGB rgb);
 
         /*********************************************************************\
-        |* Paint a circle
+        |* Draw/fill a circle
         \*********************************************************************/
         void _circle(int x, int y, int r, RGB rgb);
+        void _circleHelper(int x, int y, int r, uint8_t corner, RGB rgb);
+        void _filledCircleHelper(int x0, int y0, int r, 
+                                 uint8_t corner, int delta, RGB rgb);
 
 
         /*********************************************************************\
-        |* 
+        |* Draw/fill an ellipse
         \*********************************************************************/
-       
+        void _ellipse(int x, int y, int rx, int ry, RGB rgb);
+        void _ellipseFill(int x, int y, int rx, int ry, RGB rgb);
 
         /*********************************************************************\
         |* 

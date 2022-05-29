@@ -397,7 +397,7 @@ void Ili9481::setRotation(Rotation rotation)
     }
 
 /*****************************************************************************\
-|* Method : draw a rectangle, optionally filled
+|* Method : draw a circle, optionally filled
 \*****************************************************************************/
 void Ili9481::circle(int x, int y, int r, RGB rgb, bool filled)
     {
@@ -432,6 +432,17 @@ void Ili9481::circle(int x, int y, int r, RGB rgb, bool filled)
         }
     }
 
+/*****************************************************************************\
+|* Method : draw an ellipse, optionally filled
+\*****************************************************************************/
+void Ili9481::ellipse(int x, int y, int rx, int ry, RGB rgb, bool filled)
+    {
+    if (filled)
+        _ellipseFill(x, y, rx, ry, rgb);
+    else
+        _ellipse(x, y, rx, ry, rgb);
+    }
+
 
 /*****************************************************************************\
 |* Method : draw a line
@@ -456,9 +467,38 @@ void Ili9481::plot(int x, int y, RGB rgb)
 /*****************************************************************************\
 |* Method : draw a rectangle, filled or not
 \*****************************************************************************/
-void Ili9481::box(Rect r, RGB rgb, bool filled)
+void Ili9481::box(Rect r, RGB rgb, bool filled, int pix)
     {
-    if (filled)
+    if (pix > 0)
+        {
+        int px2 = pix * 2;
+        int rx2 = r.x + r.w - pix - 1;
+        int ry2 = r.y + r.h - pix - 1;
+        
+        if (filled)
+            {
+            _rectFill({r.x, r.y + pix, r.w, r.h - px2}, rgb);
+
+            // draw four corners
+            int delta = r.w - px2 - 1;
+            _filledCircleHelper(r.x + pix, ry2, pix, 1, r.w - px2 - 1, rgb);
+            _filledCircleHelper(r.x + pix, r.y + pix, pix, 2, delta, rgb);
+            }
+        else
+            {
+            _hline(r.x + pix    , r.y          , r.w - px2, rgb); // Top
+            _hline(r.x + pix    , r.y + r.h - 1, r.w - px2, rgb); // Bottom
+            _vline(r.x          , r.y + pix    , r.h - px2, rgb); // Left
+            _vline(r.x + r.w - 1, r.y + pix    , r.h - px2, rgb); // Right
+            
+            // draw four corners
+            _circleHelper(r.x + pix , r.y + pix , pix, 1, rgb);
+            _circleHelper(rx2       , r.y + pix , pix, 2, rgb);
+            _circleHelper(rx2       , ry2       , pix, 4, rgb);
+            _circleHelper(r.x + pix , ry2       , pix, 8, rgb);
+            }
+        }
+    else if (filled)
         _rectFill(r, rgb);
     else
         {
@@ -470,7 +510,13 @@ void Ili9481::box(Rect r, RGB rgb, bool filled)
     }
 
 
-
+/*****************************************************************************\
+|* Method : Fill the screen with a colour
+\*****************************************************************************/
+void Ili9481::clear(RGB rgb)
+    {
+    _rectFill(_limits, rgb);
+    }
 
 #pragma mark - Private Methods
 
@@ -808,7 +854,7 @@ void Ili9481::_rectFill(Rect r, RGB colour)
    }
 
 /*****************************************************************************\
-|* Method : plot a cliecle
+|* Private Method : plot a circle
 \*****************************************************************************/
 void Ili9481::_circle(int x, int y, int r, RGB rgb)
     {
@@ -870,4 +916,214 @@ void Ili9481::_circle(int x, int y, int r, RGB rgb)
         xs = xe;
         }
     while (xe < --r);
+    }
+
+/*****************************************************************************\
+|* Private Method : circle plotting helper
+\*****************************************************************************/
+void Ili9481::_circleHelper(int x0, int y0, int rr, uint8_t corner, RGB rgb)
+    {
+    if (rr <= 0) 
+        return;
+  
+    int f     = 1 - rr;
+    int ddF_x = 1;
+    int ddF_y = -2 * rr;
+    int xe    = 0;
+    int xs    = 0;
+    int len   = 0;
+
+    while (xe < rr--)
+        {
+        while (f < 0) 
+            {
+            xe ++;
+            f += (ddF_x += 2);
+            }
+        
+        f += (ddF_y += 2);
+
+        if (xe-xs==1) 
+            {
+            if (corner & 0x1) 
+                { // left top
+                plot(x0 - xe, y0 - rr, rgb);
+                plot(x0 - rr, y0 - xe, rgb);
+                }
+
+            if (corner & 0x2) 
+                { // right top
+                plot(x0 + rr    , y0 - xe, rgb);
+                plot(x0 + xs + 1, y0 - rr, rgb);
+                }
+        
+            if (corner & 0x4) 
+                { // right bottom
+                plot(x0 + xs + 1, y0 + rr, rgb);
+                plot(x0 + rr, y0 + xs + 1, rgb);
+                }
+        
+            if (corner & 0x8) 
+                { // left bottom
+                plot(x0 - rr, y0 + xs + 1, rgb);
+                plot(x0 - xe, y0 + rr    , rgb);
+                }
+            }
+        else 
+            {
+            len = xe - xs++;
+        
+            if (corner & 0x1) 
+                { // left top
+                _hline(x0 - xe, y0 - rr, len, rgb);
+                _vline(x0 - rr, y0 - xe, len, rgb);
+                }
+        
+            if (corner & 0x2) 
+                { // right top
+                _vline(x0 + rr, y0 - xe, len, rgb);
+                _hline(x0 + xs, y0 - rr, len, rgb);
+                }
+
+            if (corner & 0x4) 
+                { // right bottom
+                _hline(x0 + xs, y0 + rr, len, rgb);
+                _vline(x0 + rr, y0 + xs, len, rgb);
+                }
+        
+            if (corner & 0x8) 
+                { // left bottom
+                _vline(x0 - rr, y0 + xs, len, rgb);
+                _hline(x0 - xe, y0 + rr, len, rgb);
+                }
+            }
+        xs = xe;
+        }
+    }
+
+/*****************************************************************************\
+|* Private Method : filled circle plotting helper
+\*****************************************************************************/
+void Ili9481::_filledCircleHelper(int x0, int y0, int r, 
+                                  uint8_t corner, int delta, RGB rgb)
+    {       
+    int f     = 1 - r;
+    int ddF_x = 1;
+    int ddF_y = -r - r;
+    int y     = 0;
+
+    delta++;
+
+    while (y < r) 
+        {
+        if (f >= 0) 
+            {
+            if (corner & 0x1) 
+                _hline(x0 - y, y0 + r, y + y + delta, rgb);
+            if (corner & 0x2) 
+                _hline(x0 - y, y0 - r, y + y + delta, rgb);
+            r--;
+            ddF_y += 2;
+            f += ddF_y;
+            }
+
+        y++;
+        ddF_x += 2;
+        f += ddF_x;
+
+        if (corner & 0x1) 
+            _hline(x0 - r, y0 + y, r + r + delta, rgb);
+        if (corner & 0x2) 
+            _hline(x0 - r, y0 - y, r + r + delta, rgb);
+        }
+    }
+
+/*****************************************************************************\
+|* Private Method : draw an ellipse
+\*****************************************************************************/
+void Ili9481::_ellipse(int x, int y, int rx, int ry, RGB rgb)
+    {
+    if ((rx<2) || (ry < 2))
+        return;
+
+    int xx, yy;
+    int rx2 = rx * rx;
+    int ry2 = ry * ry;
+    int fx2 = 4 * rx2;
+    int fy2 = 4 * ry2;
+    int s;
+
+    for (xx = 0, yy = ry, s = 2*ry2+rx2*(1-2*ry); ry2*xx <= rx2*yy; xx++) 
+        {
+        // These are ordered to minimise coordinate changes in x or y
+        // drawPixel can then send fewer bounding box commands
+        plot(x + xx, y + yy, rgb);
+        plot(x - xx, y + yy, rgb);
+        plot(x - xx, y - yy, rgb);
+        plot(x + xx, y - yy, rgb);
+        if (s >= 0) 
+            {
+            s += fx2 * (1 - yy);
+            yy--;
+            }
+        s += ry2 * ((4 * xx) + 6);
+        }
+
+    for (xx = rx, yy = 0, s = 2*rx2+ry2*(1-2*rx); rx2*yy <= ry2*xx; yy++) 
+        {
+        // These are ordered to minimise coordinate changes in x or y
+        // drawPixel can then send fewer bounding box commands
+        plot(x + xx, y + yy, rgb);
+        plot(x - xx, y + yy, rgb);
+        plot(x - xx, y - yy, rgb);
+        plot(x + xx, y - yy, rgb);
+        if (s >= 0)
+            {
+            s += fy2 * (1 - xx);
+            xx--;
+            }
+        s += rx2 * ((4 * yy) + 6);
+        }
+    }
+
+/*****************************************************************************\
+|* Private Method : draw an ellipse
+\*****************************************************************************/
+void Ili9481::_ellipseFill(int x, int y, int rx, int ry, RGB rgb)
+    {
+    if ((rx<2) || (ry < 2))
+        return;
+
+    int xx, yy;
+    int rx2 = rx * rx;
+    int ry2 = ry * ry;
+    int fx2 = 4 * rx2;
+    int fy2 = 4 * ry2;
+    int s;
+
+    for (xx = 0, yy = ry, s = 2*ry2+rx2*(1-2*ry); ry2*xx <= rx2*yy; xx++) 
+        {
+        _hline(x - xx, y - yy, xx + xx + 1, rgb);
+        _hline(x - xx, y + yy, xx + xx + 1, rgb);
+
+        if (s >= 0) 
+            {
+            s += fx2 * (1 - yy);
+            yy--;
+            }
+        s += ry2 * ((4 * xx) + 6);
+        }
+
+    for (xx = rx, yy = 0, s = 2*rx2+ry2*(1-2*rx); rx2*yy <= ry2*xx; yy++) 
+        {
+        _hline(x - xx, y - yy, xx + xx + 1, rgb);
+        _hline(x - xx, y + yy, xx + xx + 1, rgb);
+
+        if (s >= 0) 
+            {
+            s += fy2 * (1 - xx);
+            xx--;
+            }
+        s += rx2 * ((4 * yy) + 6);
+        }
     }
