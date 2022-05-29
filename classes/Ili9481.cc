@@ -411,7 +411,7 @@ void Ili9481::circle(int x, int y, int r, RGB rgb, bool filled)
         int  p  = -(r>>1);
 
         _hline(x-r, y, dy+1, rgb);
-        while (x<r)
+        while (xx < r)
             {
             if (p>=0)
                 {
