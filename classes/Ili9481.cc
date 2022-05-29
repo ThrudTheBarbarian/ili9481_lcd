@@ -16,6 +16,12 @@
         sleep_us(BUSY_DELAY);                                               \
     spi_write_blocking(_spi.device(), ptr, num)
 
+#define CLIP_TALL       {0, 0, 319, 479}
+#define CLIP_WIDE       {0, 0, 479, 319}
+
+#define CMD_START       LCD_CS(Gpio::LO); LCD_CMD
+#define CMD_STOP        LCD_CS(Gpio::HI)
+
 /*****************************************************************************\
 |* Enums
 \*****************************************************************************/
@@ -25,13 +31,22 @@ enum
     SPI_CMD_SET_COLUMN_ADDRESS          = 0x2A,
     SPI_CMD_SET_ROW_ADDRESS             = 0x2B,
     SPI_CMD_WRITE_MEMORY_START          = 0x2C,
+    SPI_CMD_SET_ADDRESS_MODE            = 0x36,
+    };
+
+enum
+    {
+    AM_VERTICAL_FLIP                    = 0x01,
+    AM_HORIZONTAL_FLIP                  = 0x02,
+    AM_BGR                              = 0x08,
+    AM_SWAP_PAGE_COLUMN                 = 0x20,
     };
 
 /*****************************************************************************\
 |* Statics
 \*****************************************************************************/
 
-static Rect _limits = {0, 0, 319, 479};
+static Rect _limits = CLIP_TALL;        // Start in portrait mode
 
 static const uint8_t _initData[] =
     {
@@ -192,6 +207,7 @@ static const uint8_t _initData[] =
 \*****************************************************************************/
 Ili9481::Ili9481(void)
         :_clip(_limits)
+        ,_rotation(Ili9481::PORTRAIT)
     {}
 
 /*****************************************************************************\
@@ -362,26 +378,95 @@ void Ili9481::rectFill(Rect r, RGB colour)
    }
 
 /*****************************************************************************\
-|* Private Method : Fetch the address mode
+|* Method : Fetch the address mode
 \*****************************************************************************/
 int Ili9481::fetchAddressMode(void)
     {
-    LCD_CS(Gpio::LO);
-
     /*************************************************************************\
-    |* Enter command mode
+    |* Start the command (handle /CS and C/D)
     \*************************************************************************/
-    LCD_CMD;
+    CMD_START;
 
     uint8_t cmd = 0x0B;
     SPI_WRITE(&cmd, 1); 
-    LCD_DATA;
     
+    /*************************************************************************\
+    |* Enter data mode and read back the value
+    \*************************************************************************/
+    LCD_DATA;
     uint8_t result[3] = {0xff,0xff,0x0};
     spi_read_blocking(_spi.device(), 0xfe, result, 2);
 
+    /*************************************************************************\
+    |* Stop the command (handle /CS)
+    \*************************************************************************/
+    CMD_STOP;
+
     return result[1] & 0xF8;
     }
+
+
+/*****************************************************************************\
+|* Method : Reset the clip rectangle
+\*****************************************************************************/
+void Ili9481::resetClipRectangle(void)
+    {
+    _clip = _limits;
+    }
+
+/*****************************************************************************\
+|* Method : Set the display orienatation
+\*****************************************************************************/
+void Ili9481::setRotation(Rotation rotation)
+    {
+    /*************************************************************************\
+    |* Set the address mode 
+    \*************************************************************************/
+    LCD_CS(Gpio::LO);
+    _writeCommand(SPI_CMD_SET_ADDRESS_MODE);
+
+    switch (rotation)
+        {
+        case PORTRAIT:
+            _writeData(AM_BGR | AM_HORIZONTAL_FLIP);
+            _limits = CLIP_TALL;
+            break;
+        case LANDSCAPE:
+            _writeData(AM_BGR | AM_SWAP_PAGE_COLUMN);
+            _limits = CLIP_WIDE;
+            break;
+        case INVERTED_PORTRAIT:
+            _writeData(AM_BGR | AM_VERTICAL_FLIP);
+            _limits = CLIP_TALL;
+            break;
+        case INVERTED_LANDSCAPE:
+            _writeData(AM_BGR 
+                     | AM_SWAP_PAGE_COLUMN 
+                     | AM_HORIZONTAL_FLIP
+                     | AM_HORIZONTAL_FLIP);
+            _limits = CLIP_WIDE;
+            break;
+        }
+ 
+    setClip(_limits);
+ 
+    /*************************************************************************\
+    |* Stop the command (handle /CS)
+    \*************************************************************************/
+    CMD_STOP;
+    }
+
+/*****************************************************************************\
+|* Method : draw a line
+\*****************************************************************************/
+void Ili9481::drawLine(int x1, int y1, int x2, int y2, RGB colour)
+    {
+    if (y1 == y2)
+        _hline(x1, y1, x2-x1, colour);
+    else if (x1 == x2)
+        _vline(x1, y1, y2-y1, colour);
+    }
+
 
 #pragma mark - Private Methods
 
@@ -465,7 +550,7 @@ void Ili9481::_setWindow(Rect r, bool handleCS)
     /*************************************************************************\
     |* Set the top-left corner
     \*************************************************************************/
-   _writeCommand(SPI_CMD_SET_COLUMN_ADDRESS, false);
+    _writeCommand(SPI_CMD_SET_COLUMN_ADDRESS, false);
     _writeData((r.x >> 8) & 0xFF, false);
     _writeData((r.x & 0xFF), false);
     _writeData(((r.x + r.w) >> 8) & 0xFF, false);
@@ -520,4 +605,141 @@ void Ili9481::_pushBlock(Rect r, RGB rgb, bool handleCS)
     \*************************************************************************/
     if (handleCS)
         LCD_CS(Gpio::HI);
+    }
+
+/*****************************************************************************\
+|* Private Method : Push a block of N 16-bit words to the LCD.
+|*
+|* On entry to this method, CS ought to be already low
+\*****************************************************************************/
+void Ili9481::_pushBlock(Rect r, uint16_t *rgb, bool handleCS)
+    {
+    /*************************************************************************\
+    |* Take CS low
+    \*************************************************************************/
+    if (handleCS)
+        LCD_CS(Gpio::LO);
+
+    /*************************************************************************\
+    |* Signal that we're about to write pixel data
+    \*************************************************************************/
+    _writeCommand(SPI_CMD_WRITE_MEMORY_START, false);
+
+    /*************************************************************************\
+    |* And do so...
+    \*************************************************************************/
+    uint8_t  buf[3];
+    int num         = (r.w + 1) * (r.h + 1);
+    for (int i=0; i<num; i++)
+        {
+        uint16_t pix = *rgb ++;
+        buf[0] = (pix & 0xF800) >> 9;
+        buf[1] = (pix & 0x07E0) >> 3;
+        buf[2] = (pix & 0x003F) << 2;
+        spi_write_blocking(_spi.device(), buf,3);
+        }
+
+    /*************************************************************************\
+    |* Take CS high
+    \*************************************************************************/
+    if (handleCS)
+        LCD_CS(Gpio::HI);
+    }
+
+
+/*****************************************************************************\
+|* Private Method : Optimised method to draw a horizontal line
+\*****************************************************************************/
+void Ili9481::_hline(int x, int y, int w, RGB colour)
+    {
+    /*************************************************************************\
+    |* Clipping : early exit if we're entirely out of bounds
+    \*************************************************************************/
+    if ((y < _clip.y) || (x >= _clip.x + _clip.w) || (y >= _clip.y + _clip.h))
+        return;
+    
+    /*************************************************************************\
+    |* Clipping : adjust x
+    \*************************************************************************/
+    if (x < _clip.x)
+        {
+        w += x - _clip.x;
+        x  = _clip.x;
+        }
+    
+    if (x+w > _clip.x  + _clip.w)
+        w = _clip.w - x;
+    
+    /*************************************************************************\
+    |* Clipping : exit if we're invisible
+    \*************************************************************************/
+    if (w < 1)
+        return;
+    
+
+    /*************************************************************************\
+    |* Take CS low
+    \*************************************************************************/
+    LCD_CS(Gpio::LO);
+
+    /*************************************************************************\
+    |* Set the window on-screen that we want to fill to
+    \*************************************************************************/
+    Rect r = {x, y, w, 1};
+    _setWindow(r);
+    _pushBlock(r, colour);
+ 
+    /*************************************************************************\
+    |* Take CS high
+    \*************************************************************************/
+    LCD_CS(Gpio::HI);
+    }
+
+/*****************************************************************************\
+|* Private Method : Optimised method to draw a vertical line
+\*****************************************************************************/
+void Ili9481::_vline(int x, int y, int h, RGB colour)
+    {
+    /*************************************************************************\
+    |* Clipping : early exit if we're entirely out of bounds
+    \*************************************************************************/
+    if ((x < _clip.x) || (x >= _clip.x + _clip.w) || (y >= _clip.y + _clip.h))
+        return;
+    
+    /*************************************************************************\
+    |* Clipping : adjust x
+    \*************************************************************************/
+    if (y < _clip.y)
+        {
+        h += y - _clip.y;
+        y  = _clip.y;
+        }
+    
+    if (y+h > _clip.y  + _clip.h)
+        h = _clip.h - y;
+    
+    /*************************************************************************\
+    |* Clipping : exit if we're invisible
+    \*************************************************************************/
+    if (h < 1)
+        return;
+    
+    printf("x=%d, y=%d, h=%d\n", x, y, h);
+
+    /*************************************************************************\
+    |* Take CS low
+    \*************************************************************************/
+    LCD_CS(Gpio::LO);
+
+    /*************************************************************************\
+    |* Set the window on-screen that we want to fill to
+    \*************************************************************************/
+    Rect r = {x, y, 1, h};
+    _setWindow(r);
+    _pushBlock(r, colour);
+ 
+    /*************************************************************************\
+    |* Take CS high
+    \*************************************************************************/
+    LCD_CS(Gpio::HI);
     }

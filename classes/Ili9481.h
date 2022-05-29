@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
 
@@ -26,11 +27,24 @@ class Ili9481
     NON_COPYABLE_NOR_MOVEABLE(Ili9481)
 
  	/*************************************************************************\
+    |* Enums
+    \*************************************************************************/
+    public:
+        enum Rotation
+            {
+            PORTRAIT                         = 0,
+            LANDSCAPE,
+            INVERTED_PORTRAIT,
+            INVERTED_LANDSCAPE
+            };
+
+ 	/*************************************************************************\
     |* Properties
     \*************************************************************************/
     GET(Rect, bounds);                      // Overall bounds of the display
     GETSET(Rect, clip, Clip);               // Current clipping rectangle
-    
+    GET(Rotation, rotation);                // Orientation of the display
+
     private:
         DpyContext _ctx;                    // The display context
         Spi        _spi;                    // The SPI connection
@@ -56,6 +70,20 @@ class Ili9481
         \*********************************************************************/
         int fetchAddressMode(void);
 
+        /*********************************************************************\
+        |* Reset the clip rectangle
+        \*********************************************************************/
+        void resetClipRectangle(void);
+
+        /*********************************************************************\
+        |* Set the display orienatation
+        \*********************************************************************/
+        void setRotation(Rotation rotation);
+
+        /*********************************************************************\
+        |* Draw a line
+        \*********************************************************************/
+        void drawLine(int x1, int y1, int x2, int y2, RGB colour);
     
     private:
         /*********************************************************************\
@@ -77,6 +105,23 @@ class Ili9481
         |* Push a block of colour data to the LCD, which will be expecting it
         \*********************************************************************/
         void _pushBlock(Rect r, RGB rgb, bool handleCS=false);
+        void _pushBlock(Rect r, uint16_t *rgb, bool handleCS=false);
+
+        /*********************************************************************\
+        |* Draw a horizontal or vertical line
+        \*********************************************************************/
+        void _hline(int x, int y, int w, RGB colour);
+        void _vline(int x, int y, int h, RGB colour);
+
+        /*********************************************************************\
+        |* 
+        \*********************************************************************/
+       
+
+        /*********************************************************************\
+        |* 
+        \*********************************************************************/
+       
 
         /*********************************************************************\
         |* 

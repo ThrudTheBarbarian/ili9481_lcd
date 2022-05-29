@@ -34,10 +34,16 @@ int main (int argc, char **argv)
 
     Ili9481 dpy;
     int ok      = dpy.init(&ctx);
-    int mode    = dpy.fetchAddressMode();
+    dpy.setRotation(Ili9481::INVERTED_PORTRAIT);
 
 	dpy.rectFill({0, 0, 320, 480}, RGB(0xff, 0xff, 0xff));
 	dpy.rectFill({100, 100, 120, 280}, RGB(0xff, 0x00, 0x00));
+
+    dpy.drawLine (20, 20,  200, 20, {0x00, 0x00, 0x00});
+    dpy.drawLine (20, 200, 200, 200, {0x00, 0x00, 0x00});
+ 
+    dpy.drawLine (20,  20, 20,  200, {0x00, 0x00, 0x00});
+    dpy.drawLine (200, 20, 200, 200, {0x00, 0x00, 0x00});
 
     Gpio::State toggle = Gpio::HI;
     while (1)
