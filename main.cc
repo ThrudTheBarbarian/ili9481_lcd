@@ -39,20 +39,23 @@ int main (int argc, char **argv)
     dpy.clear(RGB(50,200,200));
 
 	dpy.box({100, 100, 120, 280}, RGB(0xff, 0x00, 0x00));
-    dpy.line(100, 100, 220, 380, RGB(0xff, 0x00, 0x00));
-    dpy.line(220, 100, 100, 380, RGB(0xff, 0x00, 0xff));
+    dpy.line({100, 100}, {220, 380}, RGB(0xff, 0x00, 0x00));
+    dpy.line({220, 100}, {100, 380}, RGB(0xff, 0x00, 0xff));
 
-    dpy.plot(50, 50, RGB(0x0, 0x00, 0x0));
+    dpy.plot({50, 50}, RGB(0x0, 0x00, 0x0));
 
-    dpy.circle(180, 300, 90, RGB(128,0,255), true);
-    dpy.circle(150,350, 100, {200, 100, 0});
+    dpy.circle({180, 300}, 90, RGB(128,0,255), true);
+    dpy.circle({150,350}, 100, {200, 100, 0});
 
-    dpy.ellipse(200,430,100,40, RGB(90, 110, 255));
-    dpy.ellipse(200,430,98,38, RGB(255, 110, 90), true);
+    dpy.ellipse({200,430}, 100, 40, RGB(90, 110, 255));
+    dpy.ellipse({200,430}, 98, 38, RGB(255, 110, 90), true);
     
     dpy.box({80, 10, 200, 30}, {255, 50, 200}, false, 5);
     dpy.box({80, 45, 200, 30}, {255, 50, 200}, true, 5);
     
+    dpy.triangle({20,20}, {90,40}, {40,70}, {0,0,0}, true);
+    dpy.triangle({20,20}, {90,40}, {40,70}, {255,0,0});
+
     Gpio::State toggle = Gpio::HI;
     while (1)
 		{

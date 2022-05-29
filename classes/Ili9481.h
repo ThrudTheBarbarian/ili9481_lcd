@@ -91,7 +91,7 @@ class Ili9481
         /*********************************************************************\
         |* Draw a line
         \*********************************************************************/
-        void line(int x1, int y1, int x2, int y2, RGB colour);
+        void line(Point p0, Point p1, RGB colour);
 
         /*********************************************************************\
         |* Draw a rectangle, optionally filled
@@ -101,17 +101,22 @@ class Ili9481
         /*********************************************************************\
         |* Draw a pixel
         \*********************************************************************/
-        void plot(int x, int y, RGB colour);
+        void plot(Point p, RGB colour);
         
         /*********************************************************************\
         |* Draw a circle, optionally filled
         \*********************************************************************/
-        void circle(int x, int y, int r, RGB colour, bool filled=false);
+        void circle(Point p, int r, RGB colour, bool fill=false);
         
         /*********************************************************************\
         |* Draw an ellipse, optionally filled
         \*********************************************************************/
-        void ellipse(int x, int y, int rx, int ry, RGB rgb, bool filled=false);
+        void ellipse(Point p, int rx, int ry, RGB rgb, bool fill=false);
+          
+        /*********************************************************************\
+        |* Draw a triangle, optionally filled
+        \*********************************************************************/
+        void triangle(Point p0, Point p1, Point p2, RGB rgb, bool fill=false);
         
         /*********************************************************************\
         |* Clear the screen to a colour
@@ -167,7 +172,8 @@ class Ili9481
         void _ellipseFill(int x, int y, int rx, int ry, RGB rgb);
 
         /*********************************************************************\
-        |* 
+        |* Fill a triangle
         \*********************************************************************/
-       
+        void _triangleFill(Point p0, Point p1, Point p2, RGB rgb);
+
    };

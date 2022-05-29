@@ -399,13 +399,15 @@ void Ili9481::setRotation(Rotation rotation)
 /*****************************************************************************\
 |* Method : draw a circle, optionally filled
 \*****************************************************************************/
-void Ili9481::circle(int x, int y, int r, RGB rgb, bool filled)
+void Ili9481::circle(Point xy, int r, RGB rgb, bool filled)
     {
     if (filled == false)
-        _circle(x, y, r, rgb);
+        _circle(xy.x, xy.y, r, rgb);
     else
         {
-        int  xx  = 0;
+        int x   = xy.x;
+        int y   = xy.y;
+        int  xx = 0;
         int  dx = 1;
         int  dy = r+r;
         int  p  = -(r>>1);
@@ -435,26 +437,31 @@ void Ili9481::circle(int x, int y, int r, RGB rgb, bool filled)
 /*****************************************************************************\
 |* Method : draw an ellipse, optionally filled
 \*****************************************************************************/
-void Ili9481::ellipse(int x, int y, int rx, int ry, RGB rgb, bool filled)
+void Ili9481::ellipse(Point p, int rx, int ry, RGB rgb, bool filled)
     {
     if (filled)
-        _ellipseFill(x, y, rx, ry, rgb);
+        _ellipseFill(p.x, p.y, rx, ry, rgb);
     else
-        _ellipse(x, y, rx, ry, rgb);
+        _ellipse(p.x, p.y, rx, ry, rgb);
     }
 
 
 /*****************************************************************************\
 |* Method : draw a line
 \*****************************************************************************/
-void Ili9481::line(int x0, int y0, int x1, int y1, RGB rgb)
+void Ili9481::line(Point p0, Point p1, RGB rgb)
     {
-    if (y1 == y0)
-        _hline(x0, y0, x1-x0, rgb);
-    else if (x0 == x1)
-        _vline(x0, y0, y1-y0, rgb);
+    if (p0.y == p1.y)
+        _hline(p0.x, p0.y, p1.x - p0.x, rgb);
+    else if (p0.x == p1.x)
+        _vline(p0.x, p0.y, p1.y - p0.y, rgb);
     else
         {
+        int x0 = p0.x;
+        int y0 = p0.y;
+        int x1 = p1.x;
+        int y1 = p1.y;
+
         bool steep = abs(y1 - y0) > abs(x1 - x0);
         if (steep) 
             {
@@ -489,7 +496,7 @@ void Ili9481::line(int x0, int y0, int x1, int y1, RGB rgb)
                 if (err < 0) 
                     {
                     if (dlen == 1) 
-                        plot(y0, xs, rgb);
+                        plot({y0, xs}, rgb);
                     else 
                         _vline(y0, xs, dlen, rgb);
                     dlen = 0;
@@ -510,7 +517,7 @@ void Ili9481::line(int x0, int y0, int x1, int y1, RGB rgb)
                 if (err < 0) 
                     {
                     if (dlen == 1) 
-                        plot(xs, y0, rgb);
+                        plot({xs, y0}, rgb);
                     else 
                         _hline(xs, y0, dlen, rgb);
                     dlen = 0;
@@ -528,9 +535,9 @@ void Ili9481::line(int x0, int y0, int x1, int y1, RGB rgb)
 /*****************************************************************************\
 |* Method : plot a pixel
 \*****************************************************************************/
-void Ili9481::plot(int x, int y, RGB rgb)
+void Ili9481::plot(Point p, RGB rgb)
     {
-    _hline(x, y, 1, rgb);
+    _hline(p.x, p.y, 1, rgb);
     }
 
 /*****************************************************************************\
@@ -585,6 +592,21 @@ void Ili9481::box(Rect r, RGB rgb, bool filled, int pix)
 void Ili9481::clear(RGB rgb)
     {
     _rectFill(_limits, rgb);
+    }
+
+/*****************************************************************************\
+|* Method : Draw a triangle, optionally filled
+\*****************************************************************************/
+void Ili9481::triangle(Point p0, Point p1, Point p2, RGB rgb, bool filled)
+    {
+    if (filled)
+        _triangleFill(p0, p1, p2, rgb);
+    else
+        {
+        line(p0, p1, rgb);
+        line(p1, p2, rgb);
+        line(p2, p0, rgb);
+        }
     }
 
 #pragma mark - Private Methods
@@ -972,15 +994,15 @@ void Ili9481::_circle(int x, int y, int r, RGB rgb)
         else
             {
             xs ++;
-            plot(x - xe, y + r, rgb);
-            plot(x - xe, y - r, rgb);
-            plot(x + xs, y - r, rgb);
-            plot(x + xs, y + r, rgb);
+            plot({x - xe, y + r}, rgb);
+            plot({x - xe, y - r}, rgb);
+            plot({x + xs, y - r}, rgb);
+            plot({x + xs, y + r}, rgb);
 
-            plot(x + r, y + xs, rgb);
-            plot(x + r, y - xe, rgb);
-            plot(x - r, y - xe, rgb);
-            plot(x - r, y + xs, rgb);
+            plot({x + r, y + xs}, rgb);
+            plot({x + r, y - xe}, rgb);
+            plot({x - r, y - xe}, rgb);
+            plot({x - r, y + xs}, rgb);
             }
         xs = xe;
         }
@@ -1016,26 +1038,26 @@ void Ili9481::_circleHelper(int x0, int y0, int rr, uint8_t corner, RGB rgb)
             {
             if (corner & 0x1) 
                 { // left top
-                plot(x0 - xe, y0 - rr, rgb);
-                plot(x0 - rr, y0 - xe, rgb);
+                plot({x0 - xe, y0 - rr}, rgb);
+                plot({x0 - rr, y0 - xe}, rgb);
                 }
 
             if (corner & 0x2) 
                 { // right top
-                plot(x0 + rr    , y0 - xe, rgb);
-                plot(x0 + xs + 1, y0 - rr, rgb);
+                plot({x0 + rr    , y0 - xe}, rgb);
+                plot({x0 + xs + 1, y0 - rr}, rgb);
                 }
         
             if (corner & 0x4) 
                 { // right bottom
-                plot(x0 + xs + 1, y0 + rr, rgb);
-                plot(x0 + rr, y0 + xs + 1, rgb);
+                plot({x0 + xs + 1, y0 + rr}, rgb);
+                plot({x0 + rr, y0 + xs + 1}, rgb);
                 }
         
             if (corner & 0x8) 
                 { // left bottom
-                plot(x0 - rr, y0 + xs + 1, rgb);
-                plot(x0 - xe, y0 + rr    , rgb);
+                plot({x0 - rr, y0 + xs + 1}, rgb);
+                plot({x0 - xe, y0 + rr    }, rgb);
                 }
             }
         else 
@@ -1126,10 +1148,10 @@ void Ili9481::_ellipse(int x, int y, int rx, int ry, RGB rgb)
         {
         // These are ordered to minimise coordinate changes in x or y
         // drawPixel can then send fewer bounding box commands
-        plot(x + xx, y + yy, rgb);
-        plot(x - xx, y + yy, rgb);
-        plot(x - xx, y - yy, rgb);
-        plot(x + xx, y - yy, rgb);
+        plot({x + xx, y + yy}, rgb);
+        plot({x - xx, y + yy}, rgb);
+        plot({x - xx, y - yy}, rgb);
+        plot({x + xx, y - yy}, rgb);
         if (s >= 0) 
             {
             s += fx2 * (1 - yy);
@@ -1142,10 +1164,10 @@ void Ili9481::_ellipse(int x, int y, int rx, int ry, RGB rgb)
         {
         // These are ordered to minimise coordinate changes in x or y
         // drawPixel can then send fewer bounding box commands
-        plot(x + xx, y + yy, rgb);
-        plot(x - xx, y + yy, rgb);
-        plot(x - xx, y - yy, rgb);
-        plot(x + xx, y - yy, rgb);
+        plot({x + xx, y + yy}, rgb);
+        plot({x - xx, y + yy}, rgb);
+        plot({x - xx, y - yy}, rgb);
+        plot({x + xx, y - yy}, rgb);
         if (s >= 0)
             {
             s += fy2 * (1 - xx);
@@ -1194,5 +1216,88 @@ void Ili9481::_ellipseFill(int x, int y, int rx, int ry, RGB rgb)
             xx--;
             }
         s += rx2 * ((4 * yy) + 6);
+        }
+    }
+
+/*****************************************************************************\
+|* Private Method : draw an ellipse
+\*****************************************************************************/
+void Ili9481::_triangleFill(Point p0, Point p1, Point p2, RGB rgb)
+    {
+    int a, b, y, last;
+
+    // Sort coordinates by Y order (y2 >= y1 >= y0)
+    if (p0.y > p1.y) 
+        Swapper(p0, p1);
+
+    if (p1.y > p2.y) 
+        Swapper(p1, p2);
+
+    if (p0.y > p1.y)
+        Swapper(p0, p1);
+
+    // Handle awkward all-on-same-line case as its own thing
+    if (p0.y == p2.y) 
+        { 
+        a = b = p0.x;
+        if (p1.x < a)      
+            a = p1.x;
+        else if (p1.x > b) 
+            b = p1.x;
+        if (p2.x < a)     
+            a = p2.x;
+        else if (p2.x > b) 
+            b = p2.x;
+        _hline(a, p0.y, b - a + 1, rgb);
+        return;
+        }
+
+    int dx01 = p1.x - p0.x;
+    int dy01 = p1.y - p0.y;
+    int dx02 = p2.x - p0.x;
+    int dy02 = p2.y - p0.y;
+    int dx12 = p2.x - p1.x;
+    int dy12 = p2.y - p1.y;
+    int sa   = 0;
+    int sb   = 0;
+
+    // For upper part of triangle, find scanline crossings for segments
+    // 0-1 and 0-2.  If p1.y=p2.y (flat-bottomed triangle), the scanline p1.y
+    // is included here (and second loop will be skipped, avoiding a /0
+    // error there), otherwise scanline p1.y is skipped here and handled
+    // in the second loop...which also avoids a /0 error here if p0.y=p1.y
+    // (flat-topped triangle).
+    if (p1.y == p2.y) 
+        last = p1.y;        // Include p1.y scanline
+    else
+        last = p1.y - 1;    // Skip it
+
+    for (y = p0.y; y <= last; y++) 
+        {
+        a   = p0.x + sa / dy01;
+        b   = p0.x + sb / dy02;
+        sa += dx01;
+        sb += dx02;
+
+        if (a > b) 
+            Swapper(a,b);
+        _hline(a, y, b - a + 1, rgb);
+        }
+
+    // For lower part of triangle, find scanline crossings for segments
+    // 0-2 and 1-2.  This loop is skipped if y1=y2.
+    sa = dx12 * (y - p1.y);
+    sb = dx02 * (y - p0.y);
+    for (; y <= p2.y; y++) 
+        {
+        a   = p1.x + sa / dy12;
+        b   = p0.x + sb / dy02;
+        sa += dx12;
+        sb += dx02;
+
+        if (a > b)
+            Swapper(a,b);
+
+        _hline(a, y, b - a + 1, rgb);
         }
     }
