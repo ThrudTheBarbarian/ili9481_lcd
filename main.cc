@@ -39,6 +39,8 @@ int main (int argc, char **argv)
     dpy.clear(RGB(50,200,200));
 
 	dpy.box({100, 100, 120, 280}, RGB(0xff, 0x00, 0x00));
+    dpy.line(100, 100, 220, 380, RGB(0xff, 0x00, 0x00));
+    dpy.line(220, 100, 100, 380, RGB(0xff, 0x00, 0xff));
 
     dpy.plot(50, 50, RGB(0x0, 0x00, 0x0));
 

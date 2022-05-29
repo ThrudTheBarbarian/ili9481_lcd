@@ -447,12 +447,81 @@ void Ili9481::ellipse(int x, int y, int rx, int ry, RGB rgb, bool filled)
 /*****************************************************************************\
 |* Method : draw a line
 \*****************************************************************************/
-void Ili9481::line(int x1, int y1, int x2, int y2, RGB colour)
+void Ili9481::line(int x0, int y0, int x1, int y1, RGB rgb)
     {
-    if (y1 == y2)
-        _hline(x1, y1, x2-x1, colour);
-    else if (x1 == x2)
-        _vline(x1, y1, y2-y1, colour);
+    if (y1 == y0)
+        _hline(x0, y0, x1-x0, rgb);
+    else if (x0 == x1)
+        _vline(x0, y0, y1-y0, rgb);
+    else
+        {
+        bool steep = abs(y1 - y0) > abs(x1 - x0);
+        if (steep) 
+            {
+            Swapper(x0, y0);
+            Swapper(x1, y1);
+            }
+
+        if (x0 > x1) 
+            {
+            Swapper(x0, x1);
+            Swapper(y0, y1);
+            }
+
+        int dx = x1 - x0;
+        int dy = abs(y1 - y0);
+
+        int err = dx >> 1;
+        int ystep = -1;
+        int xs = x0;
+        int dlen = 0;
+
+        if (y0 < y1) 
+            ystep = 1;
+
+        // Split into steep and not steep for FastH/V separation
+        if (steep) 
+            {
+            for (; x0 <= x1; x0++) 
+                {
+                dlen++;
+                err -= dy;
+                if (err < 0) 
+                    {
+                    if (dlen == 1) 
+                        plot(y0, xs, rgb);
+                    else 
+                        _vline(y0, xs, dlen, rgb);
+                    dlen = 0;
+                    y0 += ystep; xs = x0 + 1;
+                    err += dx;
+                    }
+                }
+            
+            if (dlen) 
+                _vline(y0, xs, dlen, rgb);
+            }
+        else
+            {
+            for (; x0 <= x1; x0++) 
+                {
+                dlen++;
+                err -= dy;
+                if (err < 0) 
+                    {
+                    if (dlen == 1) 
+                        plot(xs, y0, rgb);
+                    else 
+                        _hline(xs, y0, dlen, rgb);
+                    dlen = 0;
+                    y0 += ystep; xs = x0 + 1;
+                    err += dx;
+                    }
+                }
+            if (dlen) 
+                _hline(xs, y0, dlen, rgb);
+            }
+        }
     }
 
 

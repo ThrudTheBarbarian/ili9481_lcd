@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
 
@@ -20,6 +21,17 @@ typedef struct
     int pinCD;              // LCD command/data pin
     } DpyContext;
 
+
+/*****************************************************************************\
+|* Helper construct : swap any type
+\*****************************************************************************/
+template <typename T> static inline void
+Swapper(T& a, T& b) 
+    {
+    T t = a; 
+    a = b; 
+    b = t; 
+    }
 
 
 class Ili9481
